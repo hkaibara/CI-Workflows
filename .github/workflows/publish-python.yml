@@ -47,6 +47,8 @@ jobs:
   Update_CD:
     runs-on: ubuntu-latest
     needs: Publish
+    environment:
+      name: ${{inputs.environment}}
     steps:
     - name: Download Kustomize
       run: |
