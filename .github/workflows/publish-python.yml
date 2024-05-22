@@ -1,20 +1,16 @@
 name: 'CI: Build and Test'
 on:
   workflow_call:
-      # inputs:
-      #   AWS_REGION:
-      #     required: true
-      #     type: string
-      #   ECR:
-      #     required: true
-      #     type: string
-
-      # secrets:
-      #   AWS_ROLE:
-      #     required: true
-      #   GH_PAT:
-      #     required: true          
-
+      inputs:
+        environment:
+          type: string
+          required: true
+      secrets:
+        AWS_ROLE:
+          required: true
+        GH_PAT:
+          required: true
+        
 jobs:
 
   Publish:
@@ -62,7 +58,7 @@ jobs:
       with:
         repository: hkaibara/deployment-repo
         ref: main
-        token: ${{ vars.GH_PAT }}
+        token: ${{ secrets.GH_PAT }}
         
     - name: Update Manifest Image Tag
       run: |
