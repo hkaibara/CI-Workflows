@@ -68,7 +68,7 @@ jobs:
       run: |
         ls -l
         cd app1/env/test
-        kustomize edit set image app-test=${{vars.ECR}}:${{ github.sha }}
+        kustomize edit set image appv1=${{vars.ECR}}:${{ github.sha }}
         git config user.name hkaibara
         git config user.email hiroshi.kaibara.hk@gmail.com
         git add .
