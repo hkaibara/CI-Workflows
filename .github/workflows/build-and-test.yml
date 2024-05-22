@@ -17,4 +17,4 @@ jobs:
       - name: build and testing
         if: 
         run: |
-          echo build and testing | this came from reusable workflow
+          echo build and testing and this came from reusable workflow
