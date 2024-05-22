@@ -19,7 +19,9 @@ jobs:
 
   Publish:
     runs-on: ubuntu-latest
-
+    environment:
+      name: ${{ github.ref_name }}
+      
     steps:
     - name: Clone Repo
       uses: actions/checkout@v3
