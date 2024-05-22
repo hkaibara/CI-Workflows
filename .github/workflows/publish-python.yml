@@ -29,9 +29,9 @@ jobs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1.7.0
       with:
-        role-to-assume: ${{inputs.AWS_ROLE}}
+        role-to-assume: ${{secrets.AWS_ROLE}}
         role-session-name: GitHub_to_AWS_via_FederatedOIDC
-        aws-region: ${{inputs.AWS_REGION}}
+        aws-region: ${{vars.AWS_REGION}}
 
     - name: Check Credentials
       run: |
@@ -44,8 +44,8 @@ jobs:
     - name: Build, tag, and push image to Amazon ECR
       id: build-image
       run: |
-        docker build -t ${{inputs.ECR}}:${{ github.sha }} .
-        docker push ${{inputs.ECR}}:${{ github.sha }}
+        docker build -t ${{vars.ECR}}:${{ github.sha }} .
+        docker push ${{vars.ECR}}:${{ github.sha }}
 
   Update_CD:
     runs-on: ubuntu-latest
@@ -62,13 +62,13 @@ jobs:
       with:
         repository: hkaibara/deployment-repo
         ref: main
-        token: ${{ inputs.GH_PAT }}
+        token: ${{ vars.GH_PAT }}
         
     - name: Update Manifest Image Tag
       run: |
         ls -l
         cd app1/env/test
-        kustomize edit set image app-test=${{inputs.ECR}}:${{ github.sha }}
+        kustomize edit set image app-test=${{vars.ECR}}:${{ github.sha }}
         git config user.name hkaibara
         git config user.email hiroshi.kaibara.hk@gmail.com
         git add .
