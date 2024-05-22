@@ -1,19 +1,19 @@
 name: 'CI: Build and Test'
 on:
   workflow_call:
-      inputs:
-        AWS_ROLE:
-          required: true
-          type: string
-        AWS_REGION:
-          required: true
-          type: string
-        ECR:
-          required: true
-          type: string
-        GH_PAT:
-          required: true
-          type: string          
+      # inputs:
+      #   AWS_REGION:
+      #     required: true
+      #     type: string
+      #   ECR:
+      #     required: true
+      #     type: string
+
+      # secrets:
+      #   AWS_ROLE:
+      #     required: true
+      #   GH_PAT:
+      #     required: true          
 
 jobs:
 
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ github.ref_name }}
-      
+
     steps:
     - name: Clone Repo
       uses: actions/checkout@v3
