@@ -10,9 +10,9 @@ on:
         required: true
     outputs:
       tag:
-        value: ${{jobs.Release.outputs.release_tag}}
+        value: ${{jobs.Release_tag.outputs.release_tag}}
 jobs:
-  Release:
+  Release_tag:
     outputs:
       release_tag: ${{steps.release.outputs.automatic_releases_tag}}
     runs-on: ${{inputs.runner}}
