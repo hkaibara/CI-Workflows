@@ -11,9 +11,14 @@ on:
       bump:
         type: string
         required: true
+    outputs:
+      tag:
+        value: ${{jobs.Bump.outputs.version_tag}}
 
 jobs:
   Bump:
+    outputs:
+      version_tag: ${{steps.bump.outputs.tag}}
     runs-on: ${{inputs.runner}}
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +27,7 @@ jobs:
           fetch-depth: '0'
   
       - name: Bump version and push tag
+        id: bump
         uses: anothrNick/github-tag-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
