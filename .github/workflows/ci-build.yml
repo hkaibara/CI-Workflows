@@ -1,0 +1,74 @@
+name: CI Build, Publish and Deploy
+on:
+    workflow_call:
+      inputs:
+        runner:
+          type: string
+          required: true
+        checkout_ref:
+          type: string
+          required: true
+        env:
+          type: string
+          required: true
+        tags:
+          type: string
+          required: true
+
+jobs:
+  Load-Build:
+    runs-on: ${{inputs.runner}}
+    outputs:
+      matrix: ${{steps.set-matrix.outputs.matrix}}
+    steps:
+    - name: Clone App Repo
+      uses: actions/checkout@v3
+      with:
+        ref: ${{inputs.checkout_ref}}
+    - name: Set matrix data
+      id: set-matrix
+      run: |
+        echo "matrix=$(jq -c . < ./builds.json)" >> $GITHUB_OUTPUT
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: builds
+        path: builds.json
+        retention-days: 1
+
+  Build:
+    runs-on: ${{inputs.runner}}
+    if: ${{ inputs.env == 'test' }} 
+    needs: Load-Build
+    strategy:
+      matrix: ${{ fromJson(needs.Load-Build.outputs.matrix) }}
+    environment:
+      name: ${{ inputs.env }}
+    steps:
+    - name: Clone App Repo
+      uses: actions/checkout@v3
+      with:
+        ref: ${{inputs.checkout_ref}}
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1.7.0
+      with:
+        role-to-assume: ${{secrets.AWS_ROLE}}
+        role-session-name: GitHub_to_AWS_via_FederatedOIDC
+        aws-region: eu-central-1
+    - name: AWS ECR Login
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+    - name: docker setup buildx
+      uses: docker/setup-buildx-action@v2
+    - name: Build and push image(s) to Amazon ECR
+      id: image
+      env:
+        GITHUB_TOKEN: ${{secrets.ACCESS_TOKEN}}
+        REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        REPOSITORY: ${{matrix.builds.repository}}
+        APP: ${{matrix.builds.app}}
+        TARGET: ${{ matrix.builds.target }}
+        TAG:  ${{inputs.tags}}
+      run: |
+        docker buildx build --target $TARGET --build-arg REGISTRY --secret id=GITHUB_TOKEN \
+        --tag "$REGISTRY/$REPOSITORY:$APP-$TAG" --push .

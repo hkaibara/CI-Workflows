@@ -1,0 +1,38 @@
+name: 'Bump_Version'
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        required: true
+      checkout_ref:
+        type: string
+        required: true
+      tags:
+        type: string
+        required: true
+
+jobs:
+  Release:
+    runs-on: ${{inputs.runner}}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{inputs.checkout_ref}}
+          fetch-depth: '0'
+
+      - name: Create release branch
+        run: |
+          git config user.name "GitHub Bot"
+          git config user.email "<>"
+          git fetch --all --tags
+          git checkout -b release/${{inputs.tags}} ${{inputs.tags}}
+          git push origin release/${{inputs.tags}}
+
+      - name: Publish Release
+        id: release
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          automatic_release_tag: ${{inputs.tags}}

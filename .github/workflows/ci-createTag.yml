@@ -1,0 +1,36 @@
+name: 'Bump_Version'
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        required: true
+      checkout_ref:
+        type: string
+        required: true
+      bump:
+        type: string
+        required: true
+    outputs:
+      tag:
+        value: ${{jobs.Bump.outputs.version_tag}}
+
+jobs:
+  Bump:
+    outputs:
+      version_tag: ${{steps.bump.outputs.tag}}
+    runs-on: ${{inputs.runner}}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{inputs.checkout_ref}}
+          fetch-depth: '0'
+  
+      - name: Bump version and push tag
+        id: bump
+        uses: anothrNick/github-tag-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_BRANCHES: prod
+          INITIAL_VERSION: 1.0.0
+          DEFAULT_BUMP: ${{inputs.bump}}

@@ -1,0 +1,71 @@
+name: CI Build, Publish and Deploy
+on:
+    workflow_call:
+      inputs:
+        runner:
+          type: string
+          required: true
+        env:
+          type: string
+          required: true
+        tags:
+          type: string
+          required: true
+        path:
+          type: string
+          required: true
+
+jobs:
+  Deploy:
+    runs-on: ${{inputs.runner}}
+    environment:
+      name: ${{ inputs.env }}
+    steps:
+    - name: Check out manifest [CD]
+      uses: actions/checkout@v3
+      with:
+        repository: kwcommerce/cd-deployments
+        ref: main
+        ssh-key: ${{ secrets.CD_SSH_KEY }}
+
+    - name: Kustomize
+      run: |
+        curl --silent --location --remote-name \
+        "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v3.2.3/kustomize_kustomize.v3.2.3_linux_amd64" && \
+        chmod a+x kustomize_kustomize.v3.2.3_linux_amd64 && \
+        sudo mv kustomize_kustomize.v3.2.3_linux_amd64 /usr/local/bin/kustomize
+        cd ${{ inputs.path }}${{ inputs.env }}
+        ls -al
+        pwd
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: builds
+
+    - name: Update Image Tags
+      run: |
+        mv builds.json ${{ inputs.path }}${{ inputs.env }}
+        cd ${{ inputs.path }}${{ inputs.env }}
+        ls -al
+        pwd
+        count=`jq '.builds | length' builds.json`
+        for ((i=0; i<$count; i++)); do
+            repo=`jq -r '.builds['$i'].repository' builds.json`
+            app=`jq -r '.builds['$i'].app' builds.json`
+            target=`jq -r '.builds['$i'].target' builds.json`
+            kustomize edit set image $target=${{vars.ENV_REG}}/$repo:$app-${{inputs.tags}}
+        done
+        cat kustomization.yaml
+
+
+    - name: Push Changes to CD Repo
+      run: |
+        cd ${{ inputs.path }}${{ inputs.env }}
+        ls -al
+        pwd
+        git config user.name "GitHub Action - CD"
+        git config user.email "<>"
+        git add kustomization.yaml
+        git diff-index --quiet HEAD || git commit --message "app:${{inputs.path}}${{ inputs.env }} version:${{inputs.tags}}"
+        git push
