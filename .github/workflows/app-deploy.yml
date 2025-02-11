@@ -1,0 +1,109 @@
+name: Build, Publish and Deploy
+on:
+  pull_request:
+    types: 
+     - closed
+     
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+  attestations: write
+
+jobs:
+############################################################################################################################################
+# TEST ENVIRONMENT
+  Tag:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'test'
+    uses: kwcommerce/CI-Workflows/.github/workflows/ci-createTag.yml@main
+    with:
+      runner: arc
+      checkout_ref: ${{github.event.pull_request.merge_commit_sha}}
+      bump: |-
+        ${{
+             contains(github.event.pull_request.labels.*.name, 'Major')  && 'major'
+          || contains(github.event.pull_request.labels.*.name, 'Minor')  && 'minor'
+          || contains(github.event.pull_request.labels.*.name, 'Hotfix') && 'patch'
+          || contains(github.event.pull_request.labels.*.name, 'Patch')  && 'patch'
+          || 'none'
+        }}
+  Build:    
+    needs:
+      - Tag
+    uses: kwcommerce/CI-Workflows/.github/workflows/ci-build.yml@main
+    with:
+      runner: arc
+      checkout_ref: ${{github.event.pull_request.merge_commit_sha}}
+      env: ${{github.event.pull_request.base.ref}}
+      tags: ${{needs.Tag.outputs.tag}}
+    secrets: inherit
+
+  Rollback:
+    needs: 
+      - Tag
+      - Build
+    if: failure()
+    runs-on: arc
+    steps:
+    - uses: actions/checkout@v4
+    - name: Delete Tag from failed build
+      run: |
+        git config user.name "GitHub Bot"
+        git config user.email "<>"
+        git fetch --all --tags
+        git push --delete origin ${{needs.Tag.outputs.tag}}
+
+  Deploy-On-Test:
+    needs: 
+      - Tag
+      - Build
+    uses: kwcommerce/CI-Workflows/.github/workflows/cd-deploy.yml@main
+    with:
+      runner: arc
+      env: ${{github.event.pull_request.base.ref}}
+      tags: ${{needs.Tag.outputs.tag}}
+      path: app1/env/
+    secrets: inherit
+
+############################################################################################################################################
+# PreRelease
+  Bump:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'Release'
+    uses: kwcommerce/CI-Workflows/.github/workflows/ci-createTag.yml@main
+    with:
+      runner: arc
+      checkout_ref: ${{github.event.pull_request.merge_commit_sha}}
+      bump: none
+
+  Create-Release:
+    needs: 
+      - Bump
+    uses: kwcommerce/CI-Workflows/.github/workflows/ci-createRelease.yml@main
+    with:
+      runner: arc
+      checkout_ref: ${{github.event.pull_request.base.ref}}
+      tags: ${{needs.Bump.outputs.tag}}
+    secrets: inherit
+
+############################################################################################################################################
+# PRODUCTION ENVIRONMENT
+  LoadBuild:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'prod'
+    uses: kwcommerce/CI-Workflows/.github/workflows/ci-build.yml@main
+    with:
+      runner: arc
+      checkout_ref: ${{github.event.pull_request.merge_commit_sha}}
+      env: ${{github.event.pull_request.base.ref}}
+      tags: none
+    secrets: inherit
+
+  Deploy-On-Prod:
+    needs: 
+      - LoadBuild
+    uses: kwcommerce/CI-Workflows/.github/workflows/cd-deploy.yml@main
+    with:
+      runner: arc
+      env: ${{github.event.pull_request.base.ref}}
+      tags: $(echo version="${{github.event.pull_request.head.ref}}" | cut -f2 -d'/')
+      path: app1/env/
+    secrets: inherit

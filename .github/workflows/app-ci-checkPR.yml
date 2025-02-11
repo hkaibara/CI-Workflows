@@ -1,0 +1,19 @@
+name: 'CI: Check Pull Request'
+
+on:
+  pull_request:
+    types: [edited, reopened, labeled, unlabeled]
+    
+jobs:
+  checkPullRequest:
+    runs-on: arc
+    steps:
+      - name: Check base and ref branches
+        if: ${{ ( github.event.pull_request.base.ref == 'test' && (startsWith(github.event.pull_request.head.ref, 'feature/') != true) ) || ( github.event.pull_request.base.ref == 'prod' && (startsWith(github.event.pull_request.head.ref, 'release/') != true) ) || ( github.event.pull_request.base.ref == 'Release' && (github.event.pull_request.head.ref != 'test') ) }}
+        run: |
+          exit 1
+
+      - name: Check labels
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'Major') && !contains(github.event.pull_request.labels.*.name, 'Minor') && !contains(github.event.pull_request.labels.*.name, 'Hotfix') && !contains(github.event.pull_request.labels.*.name, 'Patch') && !contains(github.event.pull_request.labels.*.name, 'Release') }}
+        run: |
+          exit 1

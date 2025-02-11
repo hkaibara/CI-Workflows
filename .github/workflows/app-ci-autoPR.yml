@@ -1,0 +1,42 @@
+name: 'CI: Create Pull Request (Automated)'
+
+on:
+  push:
+    branches:
+      - feature/**
+      - release/**
+      - test
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  createPullRequest:
+    runs-on: arc
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Render template
+        id: template
+        uses: chuhlomin/render-template@v1.4
+        with:
+          template: .github/pull-request-template.md
+
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: ${{ github.event.head_commit.message }}
+          base: |-
+            ${{
+                 contains(github.ref, 'feature/') && 'test'
+              || contains(github.ref, 'test') && 'Release'
+              || 'prod'
+            }}
+          signoff: false
+          branch: ${{ github.ref }}
+          author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
+          title: ${{ github.ref }}
+          body: ${{ steps.template.outputs.result }}
